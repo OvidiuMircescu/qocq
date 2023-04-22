@@ -47,7 +47,6 @@ def command_for_pydriver(fn, args):
     func_name = fn.__name__
     protocol = file_pickle_protocol.name() # TODO get current protocol
     protocol_config = os.path.join(os.getcwd(), "db") # TODO
-    #TODO : deal with return of tuple
     result = datamanager.result_future(func_name+"_ret")
     command = "python3 py_driver.py {} {} {} --protocol_config {} ".format(
                 mod_name, func_name, protocol, protocol_config)
@@ -84,6 +83,15 @@ background_tasks = []
 
 async def local_async(fn, *args, **kwargs):
   return fn(*args, **kwargs)
+
+asynd def unfold(future_obj, n):
+  """
+  Split a future of a tuple into a tuple of futures.
+  :param future_obj: A future waiting for a tuple of size n.
+  :param n: expected size of the tuple.
+  """
+  # TODO
+  pass
 
 def atomic_task(f):
   @functools.wraps(f)
