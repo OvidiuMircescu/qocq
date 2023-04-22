@@ -1,14 +1,16 @@
 #! /usr/bin/env python3
+"""
+Driver utilisable pour exécuter du python en mode distribué, car il peut être
+lancé par ssh ou srun sur une machine distante.
+"""
 
 def main(module_name, func_name, protocol, protocol_config, args, results):
   #identify the protocol
   import datamanager
-  datamanager.activate_protocol(protocol)
+  datamanager.activate_protocol(protocol, protocol_config)
   py_args = []
   for arg in args:
     py_args.append(datamanager.get(arg))
-  import api
-  api._async_activated = False
   import importlib
   module_obj = importlib.import_module(module_name)
   func_obj = getattr(module_obj, func_name)
@@ -35,6 +37,7 @@ if __name__ == '__main__':
   parser.add_argument('--args', nargs='*', default=[])
   parser.add_argument('--results', nargs='*', default=[])
   args = parser.parse_args()
+  print("call ", args)
   main(args.module, args.function,
        args.protocol, args.protocol_config,
        args.args, args.results)

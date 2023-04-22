@@ -1,8 +1,10 @@
 """
 Prototype with
 scheduler : python asyncio
-work load manager : concurrent.futures.ProcessPoolExecutor (local execution)
-      https://docs.python.org/3/library/concurrent.futures.html#concurrent.futures.ProcessPoolExecutor
+work load manager : no
+      A possibility is to use a global concurrent.futures.ProcessPoolExecutor
+      for local execution.
+      see https://docs.python.org/3/library/concurrent.futures.html#concurrent.futures.ProcessPoolExecutor
 executor driver : function 'executor'
 data manager : managed by concurrent.futures.ProcessPoolExecutor
 
