@@ -1,9 +1,27 @@
+"""
+Prototype with
+scheduler : python asyncio
+work load manager : concurrent.futures.ProcessPoolExecutor (local execution)
+      https://docs.python.org/3/library/concurrent.futures.html#concurrent.futures.ProcessPoolExecutor
+executor driver : function 'executor'
+data manager : managed by concurrent.futures.ProcessPoolExecutor
+
+L'implémentation la plus simple de YACS pour une exécution locale sur une seule
+machine, mais avec parallélisme et exécution des fonctions dans des processus
+séparés.
+
+WARNING: functions with named parameters cannot be used as atomic tasks.
+"""
 import asyncio
 import concurrent.futures
-import time
 import functools
 
 def executor(module_name, func_name, *args):
+  """
+  We have to use this proxy function because decorated functions are not
+  serializable with pickle and thus cannot be used directly by
+  ProcessPoolExecutor.
+  """
   import importlib
   module_obj = importlib.import_module(module_name)
   func_obj = getattr(module_obj, func_name)
@@ -12,9 +30,9 @@ def executor(module_name, func_name, *args):
 async def remote_async(fn, *args):
   """
     Evaluate fn remotely in async mode.
-    :params fn: standard synchronous function.
-    :params args: fn args
-    :returns: fn evaluated as an async function.
+    :param fn: standard synchronous function.
+    :param args: fn args
+    :return: fn evaluated as an async function.
   """
   future_args = []
   for x in args:
@@ -77,50 +95,5 @@ async def run_async(fn):
     current_tasks = background_tasks
     background_tasks = []
 
-# tests
-
-@atomic_task
-def f(x):
-  import os
-  print("pid:", os.getpid(), " sleep ", x)
-  time.sleep(x)
-  #with open("rapport-"+str(x)+".txt", "w") as f:
-    #f.write("coucou!"+str(x))
-  return x * x
-
-async def main():
-  t1 = f(2)
-  t2 = f(t1)
-  t3 = f(3)
-  t4 = f(t1)
-  #await asyncio.gather(t1, t2, t3, t4)
-
-@composed_task
-def sync_main():
-  t1 = f(2)
-  t2 = f(t1)
-  t3 = f(3)
-  t4 = f(t1)
-
-async def main_bis():
-  t1 = asyncio.create_task(remote_async(f, 2))
-  t2 = asyncio.create_task(remote_async(f, t1))
-  t3 = asyncio.create_task(remote_async(f, 3))
-  t4 = asyncio.create_task(remote_async(f, t1))
-  await asyncio.gather(t1, t2, t3, t4)
-  
-
-if __name__ == '__main__':
-  import os
-  print("main pid:", os.getpid())
-  start_time = time.time()
-  #asyncio.run(main(), debug = True)
-  #asyncio.run(main_bis())
-  asyncio.run(run_async(sync_main))
-  end_time = time.time()
-  elapsed_time = end_time - start_time
-  print("Elapsed time: ", elapsed_time)
-  if elapsed_time >= 6.0 and elapsed_time <= 6.1 :
-    print("ok!")
-  else:
-    print("ça craint!")
+def run(fn):
+  asyncio.run(run_async(fn))

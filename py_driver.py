@@ -19,6 +19,7 @@ def main(module_name, func_name, protocol, protocol_config, args, results):
     idx = 0
     for result in results :
       datamanager.save(result, eval_res[idx])
+      idx += 1
 
 if __name__ == '__main__':
   import argparse
