@@ -19,12 +19,19 @@ def activate_protocol(protocol, *args, **kwargs):
   else:
     raise Exception("Protocol already defined!")
 
-#def get_url(key):
-  #global _protocol
-  #url = "{}:{}".format(_protocol.name(), key)
-  #return url
+def protocol_name():
+  global _protocol
+  if _protocol is None :
+    raise Exception("Protocol not defined!")
+  return _protocol.name()
 
-async def arg_future(value, key_prefix=None):
+def protocol_config():
+  global _protocol
+  if _protocol is None :
+    raise Exception("Protocol not defined!")
+  return _protocol.config()
+
+async def save_future(value, key_prefix=None):
   """ Save a value into the database.
       Called from the scheduler, in the main thread.
       No multithread protection needed.
@@ -41,7 +48,7 @@ async def arg_future(value, key_prefix=None):
   protocol_key = _protocol.save(new_key, value)
   return protocol_key
 
-def result_future(key_prefix=None):
+def new_key(key_prefix=None):
   """ Create a key where a result can be saved.
       Called from the scheduler, in the main thread.
       No multithread protection needed.

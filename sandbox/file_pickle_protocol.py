@@ -42,6 +42,11 @@ def name():
   """ :return: name of the protocol. Only lowercase letters, numbers or '_'."""
   return "py_file_pickle"
 
+def config():
+  """ Configuration used by init.
+  """
+  return _root_path
+
 def get(key):
   global _root_path
   if _root_path is None :
