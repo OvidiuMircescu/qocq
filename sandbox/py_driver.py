@@ -30,12 +30,18 @@ def create_command(module_name, func_name, protocol, protocol_config,
                    args, kwargs, results):
   command = "python3 py_driver.py {} {} {} --protocol_config {} ".format(
               module_name, func_name, protocol, protocol_config)
+  if len(args) > 0 :
+    command += " --args"
   for arg in args :
-    command += "--args '" + arg + "'"
+    command += " '" + arg + "'"
+  if len(kwargs) > 0 :
+    command += " --kwargs"
   for k,v in kwargs.items():
-    command += "--kwargs '{}:{}'".format(k,v)
+    command += " '{}:{}'".format(k,v)
+  if len(results) > 0 :
+    command += " --results"
   for result in results :
-    command += " --results '" + result + "'"
+    command += " '" + result + "'"
   return command
 
 def command_from_obj(cmd_obj):
@@ -44,12 +50,18 @@ def command_from_obj(cmd_obj):
               cmd_obj.function_name(),
               cmd_obj.protocol_name(),
               cmd_obj.protocol_config())
+  if len(cmd_obj.args()) > 0 :
+    command += " --args"
   for arg in cmd_obj.args() :
-    command += "--args '" + arg + "'"
+    command += " '" + arg + "'"
+  if len(cmd_obj.kwargs()) > 0:
+    command += " --kwargs"
   for k,v in cmd_obj.kwargs().items():
-    command += "--kwargs '{}:{}'".format(k,v)
+    command += " '{}:{}'".format(k,v)
+  if len(cmd_obj.results()) > 0:
+    command += " --results"
   for result in cmd_obj.results() :
-    command += " --results '" + result + "'"
+    command += " '" + result + "'"
   return command
 
 if __name__ == '__main__':

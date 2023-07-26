@@ -24,7 +24,7 @@ class WorkloadManager:
     self._used_cpus = 0
     self._condition = asyncio.Condition()
   
-  async def submit(self, command, container=None):
+  async def run(self, command, container=None):
     """
     :param command: shell command to run.
     :param container: run configuration (nbcores, etc.)
@@ -46,8 +46,9 @@ class SrunWorkloadManager:
   def __init__(self):
     pass
   
-  async def submit(self, command, container=None):
+  async def run(self, command, container=None):
     """
+    Execute the command asynchronously.
     :param command: shell command to run.
     :param container: run configuration (nbcores, etc.)
     :return:

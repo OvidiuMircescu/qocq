@@ -1,8 +1,9 @@
 import wip_advanced_qocq as qocq
 import time
+import typing
 
 @qocq.atomic_task
-def f(x):
+def f(x)-> typing.Any:
   import os
   print("pid:", os.getpid(), " sleep ", x)
   time.sleep(x)
@@ -35,3 +36,4 @@ if __name__ == '__main__':
     print("ok!")
   else:
     print("ça craint!")
+  qocq.close()

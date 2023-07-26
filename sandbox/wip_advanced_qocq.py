@@ -3,18 +3,19 @@ WARNING: Travail en cours!
 Bac à sable pour expérimenter.
 Etat courant :
 scheduler : python asyncio
-work load manager : no
+work load manager : workloadmanager.py
 executor driver : py_driver.py
 data manager : datamanager.py
 TODO error management
 """
 import asyncio
 import functools
-
 import os
+
 import datamanager
 import workloadmanager
 import container
+import funcprop
 
 wlm = None # workloadmanager object
 container_manager = None
@@ -33,11 +34,14 @@ def init(transfer_protocol="py_file_pickle",
   if containers_config is not None:
     container_manager.loadFile(containers_config)
 
+def close():
+  datamanager.close()
+
 class ObjRef:
     def __init__(self, ref):
       self.ref = ref
 
-async def executor_command(fn, args, kwargs):
+async def executor_command(fn, nb_results, args, kwargs):
     mod_name = fn.__module__ # TODO : fix __main__ module name
     if mod_name == "__main__" :
       import inspect
@@ -46,8 +50,10 @@ async def executor_command(fn, args, kwargs):
     func_name = fn.__name__
     protocol = datamanager.protocol_name()
     protocol_config = datamanager.protocol_config()
-    # TODO multiple results
-    result = datamanager.new_key(func_name+"_ret")
+    results = []
+    for i in range(nb_results):
+      key = func_name+"_r"+str(i)
+      results.append(datamanager.new_key(key))
     command_args = ""
     ref_args = []
     for arg in args:
@@ -66,15 +72,19 @@ async def executor_command(fn, args, kwargs):
     import py_driver
     command = py_driver.create_command(mod_name, func_name,
                                        protocol, protocol_config,
-                                       ref_args, ref_kwargs, [result])
-    return command, ObjRef(result)
+                                       ref_args, ref_kwargs, results)
+    result = [ ObjRef(i) for i in results ]
+    return command, result
 
 async def wait_args(*args, **kwargs):
   # TODO deal with errors
   new_args = []
   for arg in args:
     if asyncio.isfuture(arg):
-      new_args.append( await arg)
+      v = await arg
+      while asyncio.isfuture(v):
+        v = await v
+      new_args.append(v)
     else:
       new_args.append(arg)
   new_kwargs = {}
@@ -83,19 +93,21 @@ async def wait_args(*args, **kwargs):
       new_kwargs[k] = await v
   return new_args, new_kwargs
 
-async def remote_async(fn, container_type, *args, **kwargs):
+async def remote_async(fn, container_type, nb_results, *args, **kwargs):
   """
     Evaluate fn remotely in async mode.
     :param fn: standard synchronous function.
     :param container_type: container.ContainerProperties object.
+    :param nb_results: number of values returned by fn.
     :param args: fn args
     :param kwargs: fn kwargs
     :return: fn evaluated as an async function.
   """
   sync_args, sync_kwargs = await wait_args(*args, **kwargs)
 
-  command, result = await executor_command(fn, sync_args, sync_kwargs)
-  await wlm.submit(command, container_type)
+  command, result = await executor_command(fn,
+                                           nb_results, sync_args, sync_kwargs)
+  await wlm.run(command, container_type)
   return result
 
 background_tasks = []
@@ -108,17 +120,20 @@ async def local_async(fn, *args, **kwargs):
     Evaluate fn localy in async mode.
   """
   sync_args, sync_kwargs = await wait_args(*args, **kwargs)
-  result = await async_call(fn,*sync_args)
+  result = await async_call(fn, *sync_args, **sync_kwargs)
   return result
 
-async def unfold(future_obj, n):
+async def index(futures_obj, idx):
   """
-  Split a future of a tuple into a tuple of futures.
-  :param future_obj: A future waiting for a tuple of size n.
-  :param n: expected size of the tuple.
+  Wait for the promise futures_obj and return futures_obj[idx].
+  :param futures_obj: promise representing a tuple of ObjRef.
+  :param idx: index
   """
-  # TODO
-  pass
+  # TODO error management
+  obj = await futures_obj
+  while asyncio.isfuture(obj):
+    obj = await obj
+  return obj[idx]
 
 def wrapped_atomic_task(f, container_type):
   """
@@ -128,15 +143,31 @@ def wrapped_atomic_task(f, container_type):
   """
   @functools.wraps(f)
   def my_func(*args, **kwargs):
+    asyncmode = False
     try:
       asyncio.get_running_loop()
+      asyncmode = True
     except:
-      return f(*args, **kwargs) # not an async mode
+      pass
+    if asyncmode == False :
+      return f(*args, **kwargs)
     global container_manager
     container_obj = container_manager.getContainer(container_type)
-    task = asyncio.create_task(remote_async(f, container_obj, *args, **kwargs))
+    nb_results = funcprop.number_of_results(f)
+    task = asyncio.create_task(remote_async(f, container_obj,
+                                            nb_results, *args, **kwargs))
     background_tasks.append(task)
-    return task
+    future_result = []
+    for i in range(nb_results):
+      t = asyncio.create_task(index(task, i))
+      future_result.append(t)
+      background_tasks.append(t)
+    if nb_results == 0:
+      return
+    elif nb_results == 1:
+      return future_result[0]
+    else:
+      return tuple(future_result)
   return my_func
 
 def atomic_task(arg):
@@ -154,19 +185,32 @@ def atomic_task(arg):
 def composed_task(f):
   @functools.wraps(f)
   def my_func(*args, **kwargs):
+    asyncmode = False
     try:
       asyncio.get_running_loop()
+      asyncmode = True
     except:
+      pass
+    if asyncmode == False :
       return f(*args, **kwargs) # not an async mode
     task = asyncio.create_task( local_async(f, *args, **kwargs))
     background_tasks.append(task)
-    return task
+    nb_results = funcprop.number_of_results(f)
+    if nb_results == 0:
+      return
+    elif nb_results == 1:
+      return task
+    else:
+      future_result = []
+      for i in range(nb_results):
+        t = asyncio.create_task(index(task, i))
+        future_result.append(t)
+        background_tasks.append(t)
+      return tuple(future_result)
   return my_func
 
 async def run_async(fn):
-  #t1 = asyncio.create_task(fn())
   t1 = fn()
-  await t1
   global background_tasks
   current_tasks = background_tasks
   background_tasks = []

@@ -9,10 +9,13 @@ def number_of_results(f):
   if sys.version_info >= (3,8) :
     return_annotation = inspect.signature(f).return_annotation
     if return_annotation != inspect.Signature.empty :
-      if typing.get_origin(ret) == tuple :
-        return len(typing.get_args(ret))
+      if typing.get_origin(return_annotation) == tuple :
+        return len(typing.get_args(return_annotation))
+      elif return_annotation is None :
+        return 0
       else:
         return 1
+  # if old python or no annotation
   if hasattr(f, "qocq_nb_return"):
     return f.qocq_nb_return
   co = f.__code__

@@ -19,6 +19,11 @@ def activate_protocol(protocol, *args, **kwargs):
   else:
     raise Exception("Protocol already defined!")
 
+def close():
+  global _protocol
+  if _protocol:
+    _protocol.close()
+
 def protocol_name():
   global _protocol
   if _protocol is None :

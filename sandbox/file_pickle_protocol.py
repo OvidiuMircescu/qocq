@@ -7,6 +7,8 @@ Permet de définir l'API qu'on peut attendre d'un protocole d'échange de donné
 """
 import os
 import pickle
+import pathlib
+import shutil
 
 _root_path=None
 def init(root_path=None):
@@ -16,10 +18,14 @@ def init(root_path=None):
       _root_path = os.getcwd()
     else:
       _root_path = root_path
-      from pathlib import Path
-      Path(_root_path).mkdir(parents=True, exist_ok=True)
+      pathlib.Path(_root_path).mkdir(parents=True, exist_ok=True)
   else:
     raise Exception("Initialization has already been done!")
+
+def close():
+  global _root_path
+  if _root_path :
+    shutil.rmtree(_root_path)
 
 def save(key, value):
   """ Store key and value into database.
